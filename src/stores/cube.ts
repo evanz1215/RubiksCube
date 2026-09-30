@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, nextTick, ref, watch } from 'vue'
 
 import { applyMoves, CENTERS, EMPTY, FACES, randomScramble, SOLVED, type CubeState, type Face } from '@/cube/cube'
+import { autoComplete } from '@/cube/autocomplete'
 import { invertMoves } from '@/cube/notation'
 import { validate } from '@/cube/validate'
 import type { MethodId, SolveResult } from '@/solvers'
@@ -37,7 +38,12 @@ export const useCubeStore = defineStore('cube', () => {
   const state = ref<CubeState>(parseUrlState(location.search) ?? EMPTY)
   const color = ref<Face>('D')
   const showLabels3d = ref(false)
-  const validation = computed(() => validate(state.value))
+  // state 只存使用者親手填的格子；filled 再加上依規則推算出來的格子，驗證、顯示、解題都用 filled
+  const filled = computed(() => autoComplete(state.value))
+  const autoFilled = computed(() =>
+    [...state.value].flatMap((ch, i) => (ch === '.' && filled.value[i] !== '.' ? [i] : [])),
+  )
+  const validation = computed(() => validate(filled.value))
   const highlights = computed(() => validation.value.issues.flatMap((i) => i.stickers))
 
   watch(state, (s) => history.replaceState(null, '', `${location.pathname}?s=${s}`))
@@ -66,7 +72,7 @@ export const useCubeStore = defineStore('cube', () => {
   const stages = computed(() => (active.value && 'stages' in active.value ? active.value.stages : []))
   const moves = computed(() => stages.value.flatMap((s) => s.moves))
   const displayState = computed(() =>
-    mode.value === 'solve' ? applyMoves(state.value, moves.value.slice(0, step.value)) : state.value,
+    mode.value === 'solve' ? applyMoves(filled.value, moves.value.slice(0, step.value)) : filled.value,
   )
 
   async function solve() {
@@ -74,7 +80,7 @@ export const useCubeStore = defineStore('cube', () => {
     solving.value = true
     solveError.value = ''
     try {
-      results.value = await solveInWorker(state.value)
+      results.value = await solveInWorker(filled.value)
       methodId.value = results.value.find((r) => 'stages' in r)?.method ?? 'kociemba'
       reset()
       mode.value = 'solve'
@@ -124,6 +130,8 @@ export const useCubeStore = defineStore('cube', () => {
     state,
     color,
     showLabels3d,
+    filled,
+    autoFilled,
     validation,
     highlights,
     paint,

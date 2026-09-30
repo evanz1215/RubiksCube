@@ -46,7 +46,12 @@ onMounted(() => {
     </section>
 
     <section v-if="inputMode" class="editor">
-      <NetEditor :state="store.state" :highlights="store.highlights" @paint="store.paint" />
+      <NetEditor
+        :state="store.filled"
+        :highlights="store.highlights"
+        :auto="store.autoFilled"
+        @paint="store.paint"
+      />
 
       <div class="actions">
         <button type="button" @click="store.fillSolved">填入已還原狀態</button>
@@ -57,6 +62,9 @@ onMounted(() => {
       <div class="status" aria-live="polite">
         <p v-if="!store.validation.complete && store.validation.issues.length === 0" class="muted">
           還有 {{ missing }} 格未填色
+        </p>
+        <p v-if="store.autoFilled.length" class="muted" data-testid="auto-count">
+          已依規則自動推算 {{ store.autoFilled.length }} 格（虛線框），推錯的格子直接重新塗色即可
         </p>
         <ul v-if="store.validation.issues.length" class="issues">
           <li v-for="issue in store.validation.issues" :key="issue.message + issue.stickers.join()">

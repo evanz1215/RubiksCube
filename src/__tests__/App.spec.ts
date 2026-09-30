@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { nextTick } from 'vue'
 
+import { SOLVED } from '@/cube/cube'
 import App from '../App.vue'
 
 // jsdom 沒有 WebGL，3D 畫面用替身
@@ -56,6 +57,20 @@ describe('App', () => {
     }
     const letters = [0, 1, 2, 4, 5, 8].map((i) => wrapper.get(`[data-index="${i}"]`).text())
     expect(letters).toEqual(['G', 'G', 'G', 'Y', 'G', ''])
+  })
+
+  it('auto-fills deducible stickers, marks them, and keeps the URL to manual input', async () => {
+    const solvedWithoutOne = `${SOLVED.slice(0, 8)}.${SOLVED.slice(9)}`
+    history.replaceState(null, '', `/?s=${solvedWithoutOne}`)
+    setActivePinia(createPinia())
+    const wrapper = mountApp()
+
+    const cell = wrapper.get('[data-index="8"]')
+    expect(cell.text()).toBe('Y')
+    expect(cell.classes()).toContain('auto')
+    expect(wrapper.get('[data-testid="auto-count"]').text()).toContain('1 格')
+    expect(wrapper.get('[data-testid="solve"]').attributes('disabled')).toBeUndefined()
+    expect(new URLSearchParams(location.search).get('s')).toBe(solvedWithoutOne)
   })
 
   it('does not repaint fixed centers', async () => {

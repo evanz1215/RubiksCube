@@ -3,7 +3,15 @@ import { computed, onBeforeUnmount, onMounted } from 'vue'
 
 import { FACE_COLORS, FACES, type CubeState, type Face } from '@/cube/cube'
 
-const props = defineProps<{ state: CubeState; highlights: readonly number[] }>()
+const props = withDefaults(
+  defineProps<{
+    state: CubeState
+    highlights: readonly number[]
+    /** 依規則自動推算出來的格子（不是使用者親手填的） */
+    auto?: readonly number[]
+  }>(),
+  { auto: () => [] },
+)
 const emit = defineEmits<{ paint: [index: number] }>()
 
 // 十字展開圖中每一面左上角的 [列, 欄]（格子單位）
@@ -20,6 +28,7 @@ const LIGHT_TEXT = new Set(['L', 'B'])
 
 const cells = computed(() => {
   const marked = new Set(props.highlights)
+  const auto = new Set(props.auto)
   return [...props.state].map((ch, i) => {
     const face = FACES[Math.floor(i / 9)]!
     const k = i % 9
@@ -34,7 +43,8 @@ const cells = computed(() => {
       letter: info?.letter ?? '',
       lightText: LIGHT_TEXT.has(ch),
       marked: marked.has(i),
-      label: `${FACE_LABEL[face]}面第 ${k + 1} 格：${info ? info.name + '色' : '未填'}`,
+      auto: auto.has(i),
+      label: `${FACE_LABEL[face]}面第 ${k + 1} 格：${info ? info.name + '色' : '未填'}${auto.has(i) ? '（自動推算）' : ''}`,
     }
   })
 })
@@ -79,7 +89,7 @@ onBeforeUnmount(() => {
       :key="c.i"
       type="button"
       class="cell"
-      :class="{ empty: !c.color, marked: c.marked, center: c.center, 'light-text': c.lightText }"
+      :class="{ empty: !c.color, marked: c.marked, center: c.center, auto: c.auto, 'light-text': c.lightText }"
       :style="{ gridRow: c.row, gridColumn: c.col, background: c.color }"
       :disabled="c.center"
       :aria-label="c.label"
@@ -124,6 +134,14 @@ onBeforeUnmount(() => {
   opacity: 1;
   outline: 2px solid var(--text);
   outline-offset: -3px;
+}
+.cell.auto {
+  outline: 2px dashed #000a;
+  outline-offset: -5px;
+  font-style: italic;
+}
+.cell.auto.light-text {
+  outline-color: #fffc;
 }
 .cell.marked {
   box-shadow: 0 0 0 3px var(--danger);

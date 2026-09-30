@@ -63,6 +63,35 @@ describe('SolutionPlayer', () => {
     expect(store.step).toBe(0)
   })
 
+  it('supports keyboard shortcuts but leaves focused controls alone', async () => {
+    const store = useCubeStore()
+    store.state = applyMoves(SOLVED, "U' R'")
+    store.results = [{ method: 'kociemba', name: 'Kociemba', stages: [{ title: 't', moves: ['R', 'U'] }] }]
+    store.mode = 'solve'
+    store.selectMethod('kociemba')
+    const wrapper = mount(SolutionPlayer, { attachTo: document.body })
+    const press = (key: string, target: EventTarget = document.body) =>
+      target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }))
+
+    press(' ')
+    expect(store.started).toBe(true)
+    expect(store.step).toBe(0)
+    press('ArrowRight')
+    press(' ')
+    expect(store.step).toBe(2)
+    press('ArrowRight') // 已完成，不再前進
+    expect(store.step).toBe(2)
+    press('ArrowLeft')
+    expect(store.step).toBe(1)
+
+    // 焦點在速度選單上時，方向鍵留給選單本身
+    press('ArrowLeft', wrapper.get('select').element)
+    expect(store.step).toBe(1)
+    wrapper.unmount()
+    press('ArrowLeft')
+    expect(store.step).toBe(1)
+  })
+
   it('gives double turns two quarter-turn animations plus a pause', () => {
     expect(moveAnimationMs('R', 350)).toBe(350)
     expect(moveAnimationMs("R'", 350)).toBe(350)

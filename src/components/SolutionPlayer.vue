@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import { useCubeStore } from '@/stores/cube'
 import { moveAnimationMs } from '@/three/cubeScene'
@@ -52,7 +52,26 @@ function stopAnd(action: () => void) {
   clearTimeout(timer)
   action()
 }
-onBeforeUnmount(() => clearTimeout(timer))
+// 快捷鍵：空白鍵 / → 開始或下一步，← 上一步。
+// 焦點在按鈕、選單等控制項上時不攔截，避免一次按鍵觸發兩個動作
+const FORM_CONTROLS = 'button, select, input, textarea, [contenteditable]'
+function onKeydown(e: KeyboardEvent) {
+  if (e.altKey || e.ctrlKey || e.metaKey || e.repeat) return
+  if (e.target instanceof Element && e.target.closest(FORM_CONTROLS)) return
+  if (e.key === ' ' || e.key === 'ArrowRight') {
+    e.preventDefault()
+    if (!store.started) stopAnd(store.start)
+    else if (nextMove.value) stopAnd(store.next)
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault()
+    if (store.started) stopAnd(store.prev)
+  }
+}
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => {
+  clearTimeout(timer)
+  window.removeEventListener('keydown', onKeydown)
+})
 </script>
 
 <template>
@@ -118,6 +137,7 @@ onBeforeUnmount(() => clearTimeout(timer))
           <option v-for="s in SPEEDS" :key="s.ms" :value="s.ms">{{ s.label }}</option>
         </select>
       </div>
+      <p class="keys muted">快捷鍵：<kbd>空白鍵</kbd> / <kbd>→</kbd> 開始・下一步　<kbd>←</kbd> 上一步</p>
 
       <!-- 實心 = 目前所在位置（做完的最後一步），虛線 = 下一步要轉的 -->
       <ol class="stages">
@@ -266,6 +286,21 @@ onBeforeUnmount(() => clearTimeout(timer))
 }
 .error {
   color: var(--danger);
+}
+.keys {
+  text-align: center;
+}
+kbd {
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font: inherit;
+}
+/* 觸控裝置沒有鍵盤，不顯示 */
+@media (hover: none) {
+  .keys {
+    display: none;
+  }
 }
 .muted {
   margin: 0;

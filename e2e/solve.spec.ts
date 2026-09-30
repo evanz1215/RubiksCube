@@ -19,6 +19,8 @@ test('fill → scramble → solve → play every step to the end', async ({ page
   await expect(page.getByRole('heading', { name: '頂層邊塊歸位' })).toBeVisible()
 
   await tabs.nth(0).click()
+  await expect(page.getByTestId('next-step')).toHaveCount(0)
+  await page.getByTestId('start').click()
   const next = page.getByTestId('next-step')
   while (await next.isEnabled()) await next.click()
   await expect(page.getByTestId('next-move')).toHaveText('完成！')

@@ -33,6 +33,11 @@ function loop() {
     playing.value = false
     return
   }
+  if (!store.started) {
+    store.start()
+    timer = setTimeout(loop, 600)
+    return
+  }
   const move = store.moves[store.step]!
   store.next()
   timer = setTimeout(loop, moveAnimationMs(move, store.duration) + 250)
@@ -72,8 +77,12 @@ onBeforeUnmount(() => clearTimeout(timer))
     <template v-else>
       <div class="now" aria-live="polite">
         <span class="progress">{{ store.step }} / {{ total }}</span>
-        <strong class="move" data-testid="next-move">{{ nextMove ?? '完成！' }}</strong>
-        <span v-if="nextMove?.endsWith('2')" class="double" data-testid="double-hint">轉兩次</span>
+        <span v-if="!store.started" class="ready" data-testid="ready">握好方塊後按「開始」</span>
+        <template v-else>
+          <span v-if="nextMove" class="label">下一步</span>
+          <strong class="move" data-testid="next-move">{{ nextMove ?? '完成！' }}</strong>
+          <span v-if="nextMove?.endsWith('2')" class="double" data-testid="double-hint">轉兩次</span>
+        </template>
       </div>
 
       <div class="controls">
@@ -84,6 +93,16 @@ onBeforeUnmount(() => clearTimeout(timer))
           {{ playing ? '❚❚' : '▶▶' }}
         </button>
         <button
+          v-if="!store.started"
+          type="button"
+          class="primary big"
+          data-testid="start"
+          @click="stopAnd(store.start)"
+        >
+          開始 ▶
+        </button>
+        <button
+          v-else
           type="button"
           class="primary big"
           :disabled="!nextMove"
@@ -100,6 +119,7 @@ onBeforeUnmount(() => clearTimeout(timer))
         </select>
       </div>
 
+      <!-- 實心 = 目前所在位置（做完的最後一步），虛線 = 下一步要轉的 -->
       <ol class="stages">
         <li v-for="row in stageRows" :key="row.title">
           <h3>{{ row.title }}</h3>
@@ -110,8 +130,13 @@ onBeforeUnmount(() => clearTimeout(timer))
               :key="index"
               type="button"
               class="chip"
-              :class="{ done: index < store.step, current: index === store.step }"
-              @click="stopAnd(() => store.goTo(index))"
+              :class="{
+                done: index < store.step - 1,
+                current: index === store.step - 1,
+                next: store.started && index === store.step,
+              }"
+              :data-testid="`move-${index}`"
+              @click="stopAnd(() => store.goTo(index + 1))"
             >
               {{ m }}
             </button>
@@ -166,6 +191,14 @@ onBeforeUnmount(() => clearTimeout(timer))
   color: var(--on-accent);
   font-size: 14px;
   font-weight: 700;
+}
+.label {
+  color: var(--muted);
+}
+.ready {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 53px; /* 與大字記號同高，切換時版面不跳動 */
 }
 .progress {
   color: var(--muted);
@@ -222,6 +255,9 @@ onBeforeUnmount(() => clearTimeout(timer))
 }
 .chip.done {
   opacity: 0.45;
+}
+.chip.next {
+  border: 2px dashed var(--accent);
 }
 .chip.current {
   border-color: var(--accent);

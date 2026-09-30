@@ -57,6 +57,7 @@ export const useCubeStore = defineStore('cube', () => {
   const results = ref<SolveResult[]>([])
   const methodId = ref<MethodId>('kociemba')
   const step = ref(0)
+  const started = ref(false)
   const lastMove = ref<string | null>(null)
   const viewResetKey = ref(0)
   const duration = ref(350)
@@ -75,7 +76,7 @@ export const useCubeStore = defineStore('cube', () => {
     try {
       results.value = await solveInWorker(state.value)
       methodId.value = results.value.find((r) => 'stages' in r)?.method ?? 'kociemba'
-      goTo(0)
+      reset()
       mode.value = 'solve'
     } catch (e) {
       solveError.value = e instanceof Error ? e.message : String(e)
@@ -85,9 +86,18 @@ export const useCubeStore = defineStore('cube', () => {
   }
 
   function goTo(index: number, move: string | null = null) {
+    started.value = true
     lastMove.value = move
     step.value = Math.max(0, Math.min(index, moves.value.length))
     viewResetKey.value++
+  }
+  /** 回到「還沒開始」：使用者先確認握法，再按開始 */
+  function reset() {
+    goTo(0)
+    started.value = false
+  }
+  function start() {
+    goTo(0)
   }
   function next() {
     if (step.value < moves.value.length) goTo(step.value + 1, moves.value[step.value]!)
@@ -103,7 +113,7 @@ export const useCubeStore = defineStore('cube', () => {
   }
   function selectMethod(id: MethodId) {
     methodId.value = id
-    goTo(0)
+    reset()
   }
   function backToInput() {
     mode.value = 'input'
@@ -126,6 +136,8 @@ export const useCubeStore = defineStore('cube', () => {
     results,
     methodId,
     step,
+    started,
+    start,
     lastMove,
     viewResetKey,
     duration,

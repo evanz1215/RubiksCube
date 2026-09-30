@@ -64,19 +64,6 @@ watch(() => props.resetKey, () => scene?.resetView())
 </script>
 
 <template>
-  <div ref="host" class="cube-canvas" data-testid="cube-canvas" />
+  <!-- 高度由使用端以 class 指定；canvas 填滿容器，尺寸交給 CSS -->
+  <div ref="host" class="w-full min-h-60 touch-none *:block *:size-full" data-testid="cube-canvas" />
 </template>
-
-<style scoped>
-.cube-canvas {
-  width: 100%;
-  height: 100%;
-  min-height: 240px;
-  touch-action: none;
-}
-.cube-canvas :deep(canvas) {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-</style>

@@ -26,6 +26,20 @@ const FACE_ORIGIN: Record<Face, [number, number]> = {
 const FACE_LABEL: Record<Face, string> = { U: '上', R: '右', F: '前', D: '下', L: '左', B: '後' }
 const LIGHT_TEXT = new Set(['L', 'B'])
 
+const CELL = 'cell aspect-square min-w-0 rounded-[3px] border border-black/40 p-0 text-[clamp(10px,2.6vw,14px)] leading-none font-semibold'
+
+/** 格子樣式；cell / auto 也是拖曳填色與測試用的語意 class */
+function cellClasses(o: { empty: boolean; center: boolean; auto: boolean; marked: boolean; lightText: boolean }) {
+  return [
+    CELL,
+    o.lightText ? 'text-white' : 'text-[#111]',
+    o.empty && 'bg-empty',
+    o.center && 'outline-2 -outline-offset-3 outline-ink disabled:cursor-default disabled:opacity-100',
+    o.auto && ['auto italic outline-2 -outline-offset-5 outline-dashed', o.lightText ? 'outline-white/80' : 'outline-black/65'],
+    o.marked && 'z-10 shadow-[0_0_0_3px_var(--color-danger)]',
+  ]
+}
+
 const cells = computed(() => {
   const marked = new Set(props.highlights)
   const auto = new Set(props.auto)
@@ -41,9 +55,13 @@ const cells = computed(() => {
       center: k === 4,
       color: info?.hex,
       letter: info?.letter ?? '',
-      lightText: LIGHT_TEXT.has(ch),
-      marked: marked.has(i),
-      auto: auto.has(i),
+      classes: cellClasses({
+        empty: !info,
+        center: k === 4,
+        auto: auto.has(i),
+        marked: marked.has(i),
+        lightText: LIGHT_TEXT.has(ch),
+      }),
       label: `${FACE_LABEL[face]}面第 ${k + 1} 格：${info ? info.name + '色' : '未填'}${auto.has(i) ? '（自動推算）' : ''}`,
     }
   })
@@ -83,13 +101,19 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="net" role="group" aria-label="展開圖" @pointerdown="onPointerDown" @pointermove="onPointerMove">
+  <!-- touch-none：在展開圖上拖曳是填色，不是捲動頁面 -->
+  <div
+    class="net mx-auto grid w-full max-w-120 touch-none grid-cols-12 gap-0.5 select-none"
+    role="group"
+    aria-label="展開圖"
+    @pointerdown="onPointerDown"
+    @pointermove="onPointerMove"
+  >
     <button
       v-for="c in cells"
       :key="c.i"
       type="button"
-      class="cell"
-      :class="{ empty: !c.color, marked: c.marked, center: c.center, auto: c.auto, 'light-text': c.lightText }"
+      :class="c.classes"
       :style="{ gridRow: c.row, gridColumn: c.col, background: c.color }"
       :disabled="c.center"
       :aria-label="c.label"
@@ -100,51 +124,3 @@ onBeforeUnmount(() => {
     </button>
   </div>
 </template>
-
-<style scoped>
-.net {
-  display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  grid-template-rows: repeat(9, auto);
-  gap: 2px;
-  width: 100%;
-  max-width: 480px;
-  margin: 0 auto;
-  touch-action: none; /* 在展開圖上拖曳是填色，不是捲動頁面 */
-  user-select: none;
-}
-.cell {
-  aspect-ratio: 1;
-  min-width: 0;
-  padding: 0;
-  border: 1px solid #0006;
-  border-radius: 3px;
-  font: 600 clamp(10px, 2.6vw, 14px) / 1 system-ui, sans-serif;
-  color: #111;
-  cursor: pointer;
-}
-.cell.light-text {
-  color: #fff;
-}
-.cell.empty {
-  background: var(--empty);
-}
-.cell.center {
-  cursor: default;
-  opacity: 1;
-  outline: 2px solid var(--text);
-  outline-offset: -3px;
-}
-.cell.auto {
-  outline: 2px dashed #000a;
-  outline-offset: -5px;
-  font-style: italic;
-}
-.cell.auto.light-text {
-  outline-color: #fffc;
-}
-.cell.marked {
-  box-shadow: 0 0 0 3px var(--danger);
-  z-index: 1;
-}
-</style>

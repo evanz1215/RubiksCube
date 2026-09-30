@@ -56,6 +56,29 @@ describe('autoComplete', () => {
     expect(filledCount(autoComplete(partial))).toBe(6)
   })
 
+  // 後面整面空著、左後上角的兩格顏色填反：兩格剛好對上「另一顆」真實角塊，
+  // 單看這顆看不出錯，照推會補出重複的角塊（某色 10 格），讓使用者找不到真正填錯的格子
+  const withSwappedCorner = (base: CubeState) => {
+    const [a, b] = CORNERS[2]
+    const chars = [...hide(base, Array.from({ length: 9 }, (_, k) => 45 + k))]
+    ;[chars[a], chars[b]] = [chars[b]!, chars[a]!]
+    return chars.join('')
+  }
+
+  it('gives up instead of filling when the input contains a mistake', () => {
+    // 回歸案例：修正前會在後面補出第 10 格紅色
+    const input = 'LLFRUBUDFDDDURDFBURRLLFRRUUULLUDRRLBBFFULDDFB....B....'
+    expect(autoComplete(input)).toBe(input)
+  })
+
+  it('never produces more than 9 stickers of a color from mistaken input', () => {
+    for (let n = 0; n < 200; n++) {
+      const result = autoComplete(withSwappedCorner(scrambled()))
+      const counts = [...'URFDLB'].map((f) => [...result].filter((c) => c === f).length)
+      expect(Math.max(...counts)).toBeLessThanOrEqual(9)
+    }
+  })
+
   it('does not invent colors for contradictory input', () => {
     // 同一顆角塊的三格都填黃色：不存在的方塊，不能被推算「修正」
     const [a, b, c] = CORNERS[0]

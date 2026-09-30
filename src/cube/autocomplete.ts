@@ -11,7 +11,8 @@ interface Candidate {
  * 1. 某位置扣掉已用掉的方塊後，只剩一種方塊＋朝向能放
  * 2. 某顆還沒出現的方塊，只剩一個位置能放
  * 3. 剩下位置不多時列舉所有放法，用朝向總和與排列奇偶篩到唯一
- * 輸入不合法時不會硬填，交給驗證器報錯。
+ * 輸入一致時推算必定正確；推算結果若出現矛盾，代表使用者填錯，
+ * 此時放棄推算、原樣回傳，讓驗證器直接指出填錯的方塊。
  */
 export function autoComplete(state: CubeState): CubeState {
   const chars = [...state]
@@ -21,7 +22,32 @@ export function autoComplete(state: CubeState): CubeState {
       fillPieces(chars, CORNERS, permutationParity(chars, EDGES)) ||
       fillPieces(chars, EDGES, permutationParity(chars, CORNERS))
   }
-  return chars.join('')
+  return hasConflict(chars) ? state : chars.join('')
+}
+
+/** 某色超過 9 格，或已填滿的位置出現不存在／重複的方塊 */
+function hasConflict(chars: string[]): boolean {
+  const counts = new Map<string, number>()
+  for (const ch of chars) if (ch !== '.') counts.set(ch, (counts.get(ch) ?? 0) + 1)
+  if ([...counts.values()].some((n) => n > 9)) return true
+  return [CORNERS, EDGES].some((pieces) => {
+    const found = pieces.map((_, pos) => pieceAt(chars, pieces, pos)).filter((p) => p !== null)
+    return found.includes(-1) || new Set(found).size !== found.length
+  })
+}
+
+/** pos 上是哪一顆方塊：未填滿為 null，不存在的顏色組合為 -1 */
+function pieceAt(chars: string[], pieces: Pieces, pos: number): number | null {
+  const stickers = pieces[pos]!
+  const n = stickers.length
+  const colors = stickers.map((i) => chars[i])
+  if (colors.includes('.')) return null
+  const targets = pieces.map((p) => p.map((i) => SOLVED[i]).join(''))
+  for (let o = 0; o < n; o++) {
+    const piece = targets.indexOf(colors.map((_, k) => colors[(o + k) % n]).join(''))
+    if (piece !== -1) return piece
+  }
+  return -1
 }
 
 const MAX_ENUMERATE = 4
@@ -34,19 +60,10 @@ function parityOf(perm: number[]): number {
 
 /** 另一類方塊全部填好且合法時，回傳其排列奇偶；否則 null */
 function permutationParity(chars: string[], pieces: Pieces): number | null {
-  const n = pieces[0]!.length
-  const targets = pieces.map((p) => p.map((i) => SOLVED[i]).join(''))
-  const perm: number[] = []
-  for (const stickers of pieces) {
-    const colors = stickers.map((i) => chars[i])
-    if (colors.includes('.')) return null
-    const piece = Array.from({ length: n }, (_, o) => colors.map((_, k) => colors[(o + k) % n]).join(''))
-      .map((c) => targets.indexOf(c))
-      .find((p) => p !== -1)
-    if (piece === undefined) return null
-    perm.push(piece)
-  }
-  return new Set(perm).size === perm.length ? parityOf(perm) : null
+  const perm = pieces.map((_, pos) => pieceAt(chars, pieces, pos))
+  if (perm.some((p) => p === null || p === -1)) return null
+  const valid = perm as number[]
+  return new Set(valid).size === valid.length ? parityOf(valid) : null
 }
 
 function fillPieces(chars: string[], pieces: Pieces, otherParity: number | null): boolean {

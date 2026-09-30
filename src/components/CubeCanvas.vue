@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-import { applyMove, type CubeState } from '@/cube/cube'
-import { createCubeScene, type CubeScene } from '@/three/cubeScene'
+import { applyMove, parseMove, type CubeState } from '@/cube/cube'
+import { createCubeScene, DOUBLE_TURN_PAUSE, type CubeScene } from '@/three/cubeScene'
 
 const props = withDefaults(
   defineProps<{
@@ -33,6 +33,18 @@ onMounted(() => {
 
 onBeforeUnmount(() => scene?.dispose())
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+/** 雙轉拆成兩下 90°，中間停一下，使用者才看得出要轉兩次 */
+async function animate(s: CubeScene, from: CubeState, move: string, duration: number) {
+  const { base, turns } = parseMove(move)
+  if (turns !== 2) return s.animateMove(move, duration)
+  await s.animateMove(base, duration)
+  s.setState(applyMove(from, base))
+  await sleep(duration * DOUBLE_TURN_PAUSE)
+  await s.animateMove(base, duration)
+}
+
 // 動畫依序排隊播放，快速連點也不會錯亂
 watch(
   () => props.state,
@@ -41,7 +53,7 @@ watch(
     const duration = props.duration
     queue = queue.then(async () => {
       if (!scene) return
-      if (move && applyMove(prev, move) === next) await scene.animateMove(move, duration)
+      if (move && applyMove(prev, move) === next) await animate(scene, prev, move, duration)
       scene.setState(next)
     })
   },

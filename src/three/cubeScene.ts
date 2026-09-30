@@ -9,6 +9,14 @@ const DARK_TEXT_FACES = new Set(['L', 'B'])
 // 預設視角：看得到正面 (F)、上面 (U)、右面 (R)，即使用者手握方塊的角度
 const HOME_CAMERA = new THREE.Vector3(4.3, 4.1, 6.7)
 
+/** 雙轉（如 R2）拆成兩下 90° 播放，兩下之間停頓的長度（相對單次動畫時間） */
+export const DOUBLE_TURN_PAUSE = 0.6
+
+/** 一個轉動的動畫總長；自動播放用它決定下一步何時開始 */
+export function moveAnimationMs(move: string, durationMs: number): number {
+  return parseMove(move).turns === 2 ? durationMs * (2 + DOUBLE_TURN_PAUSE) : durationMs
+}
+
 export interface CubeScene {
   setState(state: CubeState): void
   setLabels(show: boolean): void
@@ -108,7 +116,7 @@ export function createCubeScene(container: HTMLElement, onStickerClick: (index: 
     const axisVec = new THREE.Vector3(...axis)
     const angle = -(Math.PI / 2) * (turns === 3 ? -1 : turns)
     const start = performance.now()
-    const duration = durationMs * (turns === 2 ? 1.5 : 1)
+    const duration = durationMs
 
     return new Promise((resolve) => {
       tick = (now) => {

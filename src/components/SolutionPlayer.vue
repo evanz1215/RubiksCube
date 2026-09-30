@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 
 import { useCubeStore } from '@/stores/cube'
+import { moveAnimationMs } from '@/three/cubeScene'
 
 const store = useCubeStore()
 const SPEEDS = [
@@ -32,8 +33,9 @@ function loop() {
     playing.value = false
     return
   }
+  const move = store.moves[store.step]!
   store.next()
-  timer = setTimeout(loop, store.duration + 250)
+  timer = setTimeout(loop, moveAnimationMs(move, store.duration) + 250)
 }
 function togglePlay() {
   playing.value = !playing.value
@@ -71,6 +73,7 @@ onBeforeUnmount(() => clearTimeout(timer))
       <div class="now" aria-live="polite">
         <span class="progress">{{ store.step }} / {{ total }}</span>
         <strong class="move" data-testid="next-move">{{ nextMove ?? '完成！' }}</strong>
+        <span v-if="nextMove?.endsWith('2')" class="double" data-testid="double-hint">轉兩次</span>
       </div>
 
       <div class="controls">
@@ -155,6 +158,14 @@ onBeforeUnmount(() => clearTimeout(timer))
 .move {
   font-size: 44px;
   font-family: ui-monospace, monospace;
+}
+.double {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 14px;
+  font-weight: 700;
 }
 .progress {
   color: var(--muted);
